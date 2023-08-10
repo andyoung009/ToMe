@@ -23,12 +23,13 @@ def generate_colormap(N: int, seed: int = 0) -> List[Tuple[float, float, float]]
     """Generates a equidistant colormap with N elements."""
     random.seed(seed)
 
+    # generate_color()`函数使用Python中的`random`模块来生成每个颜色通道（红色、绿色和蓝色）的随机值，这些值的范围在0到1之间。
     def generate_color():
         return (random.random(), random.random(), random.random())
 
     return [generate_color() for _ in range(N)]
 
-
+# 使用PyTorch和PIL库创建可视化函数，接受一个图像和一个PyTorch张量作为输入，并生成一个与输入图像大小相同的PIL图像。
 def make_visualization(
     img: Image, source: torch.Tensor, patch_size: int = 16, class_token: bool = True
 ) -> Image:
@@ -41,6 +42,12 @@ def make_visualization(
     Returns:
      - A PIL image the same size as the input.
     """
+
+    # 函数的参数包括：
+    # 1. img：一个PIL图像对象。
+    # 2. source：一个PyTorch张量，表示输入图像的特征表示。
+    # 3. patch_size：一个可选的整数，表示用于划分输入图像的补丁大小。默认为16。
+    # 4. class_token：一个可选的布尔值，指示特征表示是否包含类令牌。默认为True。
 
     img = np.array(img.convert("RGB")) / 255.0
     source = source.detach().cpu()
@@ -58,6 +65,7 @@ def make_visualization(
     cmap = generate_colormap(num_groups)
     vis_img = 0
 
+    # 对于每个类别，该函数使用F.interpolate()函数将掩码大小调整为与输入图像相同，并使用二元腐蚀算法生成一个新的掩码(mask_eroded)和一个边缘掩码(mask_edge)。
     for i in range(num_groups):
         mask = (vis == i).float().view(1, 1, ph, pw)
         mask = F.interpolate(mask, size=(h, w), mode="nearest")

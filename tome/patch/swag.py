@@ -19,7 +19,16 @@ from tome.utils import parse_r
 
 # Since we don't necessarily have the swag code available, this patch is a little bit more involved
 
-
+# 这段代码定义了一个函数 `make_block_class`，它接受一个参数 `block_cls`，并返回一个新的类 `ToMeBlock`，该类继承自 `block_cls``。
+# `ToMeBlock` 类在原有的 `block_cls` 类的基础上进行了修改，增加了一个 `ToMe` 操作，该操作 self-attention 和 MLP 之间进行。
+# 同时，该类还计算并传播了 token 的大小和来源信息。
+# 在 `forward` 方法中，首先对输入进行 Layer Normalization，然后进行 self-attention 操作，得到 `x_attn` 和 `metric`。
+# 如果 `prop_attn` 为 True使用 `_tome_info["size"]` 作为 self-attention 的输出大小；否则，使用默认值 None。
+# 然后对 `x_attn` 进行 dropout 操作，并将其与输入相加得到 `x`。
+# 接下来，从 `_tome_info["r"]` 中弹出一个值 `r`，如果 `r` 大于 0进行 ToMe 操作。
+# 具体来说，使用 `bipartite_soft_matching` 函数对 `metric` 进行匹配，得到 `merge`，然后使用 `merge_wavg` 函数对 `x` 进行加权平均
+# 得到新的 `x` 和更新后的 `_tome_info["size"]`。如果 `trace_source` 为 True，则还会更新 `_tome_info["source"]`。
+# 最后，对 `x` 进行 Layer Normalization，然后进行 MLP 操作，得到 `y`。将 `x` 和 `y` 相加并返回。
 def make_block_class(block_cls):
     class ToMeBlock(block_cls):
         """
@@ -61,7 +70,15 @@ def make_block_class(block_cls):
 
     return ToMeBlock
 
-
+# 这是一个Python函数，它接受一个名为"transformer_class"的参数，并返回一个新的类"ToMeVisionTransformer"。
+# 这个新类是通过继承"transformer_class"类来创建的，因此它继承了"transformer_class"的所有属性和方法。
+# 这个新类有一个名为"forward"的方法，它覆盖了基类的"forward"方法。在新的"forward"方法中，首先调用了基类的"forward"方法，然后对一些属性进行了修改：
+# - "r"属性：这是一个整数，它表示在Tome中使用的"r"值。"r"值是一个超参数，用于设置要合并的连续的token的数量。在这个方法中，首先使用"parse_r"函数计算"r"值，
+# 然后将其存储在"_tome_info"字典中的"r"键下。
+# - "size"属性：这是一个整数，它表示在Tome中使用的token大小。在这个方法中，将其设置为None，并将其存储在"_tome_info"字典中的"size"键下。
+# - "source"属性：这是一个字符串，它表示在Tome中使用的token来源。在这个方法中，将其设置为None，并将其存储在"_tome_info"字典中的"source"键下。
+# 最后，这个新类被返回并可以被实例化和使用。这个新类在基类的基础上进行了修改，添加了Tome需要的一些属性和方法。
+# 这样，当使用这个新的类创建模型时，# 就可以获得Tome的功能，例如合并连续的token，从而减少模型的计算量和参数量。
 class ToMeAttention(torch.nn.MultiheadAttention):
     """
     Modifications:
@@ -74,6 +91,8 @@ class ToMeAttention(torch.nn.MultiheadAttention):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Note: this is copied from timm.models.vision_transformer.Attention with modifications.
         B, N, C = x.shape
+        # To add sizes to the pre (or post) softmax attn matrix, there may be a hacky way to add what we want to 
+        # the pre-softmax matrix by modifying the biases (i.e., in_proj_bias or k_bias, idk which) on the fly.
         qkv = torch.nn.functional.linear(x, self.in_proj_weight, self.in_proj_bias)
         qkv = qkv.reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(
             2, 0, 3, 1, 4

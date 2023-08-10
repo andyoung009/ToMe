@@ -14,7 +14,7 @@ from typing import Tuple
 import torch
 from timm.models.vision_transformer import Attention, Block, VisionTransformer
 
-from tome.merge import bipartite_soft_matching, merge_source, merge_wavg
+from tome.merge import bipartite_soft_matching, merge_source, merge_wavg, kth_bipartite_soft_matching
 from tome.utils import parse_r
 
 
@@ -82,6 +82,7 @@ class ToMeAttention(Attention):
         attn = (q @ k.transpose(-2, -1)) * self.scale
 
         # Apply proportional attention
+        # 见论文第3页末尾提到的 "proportional attention"
         if size is not None:
             attn = attn + size.log()[:, None, None, :, 0]
 

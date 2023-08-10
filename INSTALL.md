@@ -25,3 +25,11 @@ Then set up the tome package with:
 ```bash
 python setup.py build develop
 ```
+
+## the python env
+run in the conda env yolov3
+because need pytorch >= 1.12.1 For scatter_reduce
+
+## copy the env tome from yolov3
+copy the env from yolov3
+change the torch version to 1.12.1 to suit the stable diffusion
